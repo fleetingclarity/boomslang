@@ -1,0 +1,24 @@
+{
+  "name": "amazonq-standards",
+  "description": "Organization-specific Amazon Q Developer CLI context rules and standards",
+  "version": "0.1.0",
+  "repository": {
+    "url": "gitlab.example.com/org/amazonq-standards",
+    "default_branch": "main"
+  },
+  "installation": {
+    "target_dir": "$HOME/.amazonq/rules",
+    "source_dir": "configs/.amazonq/rules"
+  },
+  "organization": {
+    "name": "Your Organization",
+    "contact": "devtools@yourorg.com",
+    "maintainer": "Platform Team"
+  },
+  "rules": {
+    "included": [
+      "reviewer-context.md"
+    ],
+    "description": "Context rules for Amazon Q Developer CLI including code review workflows"
+  }
+}
