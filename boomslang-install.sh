@@ -11,8 +11,9 @@ ORG_REPO_URL="gitlab.example.com/org/amazonq-standards"  # Set by maintainer for
 ORG_BRANCH="main"
 
 # Runtime configuration
-TARGET_DIR="$HOME/.amazonq/rules"
-INSTALL_MARKER="$TARGET_DIR/.boomslang-installed"
+CONTEXT_DIR="$HOME/.boomslang"
+PROFILES_DIR="$HOME/.aws/amazonq/profiles"
+INSTALL_MARKER="$CONTEXT_DIR/.boomslang-installed"
 
 # Colors for output
 RED='\033[0;31m'
@@ -27,6 +28,7 @@ REPO_URL=""
 BRANCH=""
 DRY_RUN=false
 UNINSTALL=false
+CLEAN_BACKUPS=false
 FORCE=false
 QUIET=false
 
@@ -45,6 +47,7 @@ ${BOLD}OPTIONS (for overrides):${NC}
     -b, --branch BRANCH     Override git branch
     -d, --dry-run          Show what would be done without making changes
     -u, --uninstall        Remove installed standards
+    -c, --clean-backups    Remove all backup files
     -f, --force            Force installation/removal without prompts
     -q, --quiet            Suppress non-error output
     -h, --help             Show this help message
@@ -62,6 +65,9 @@ ${BOLD}EXAMPLES:${NC}
 
     # Uninstall
     $0 --uninstall
+    
+    # Clean all backups
+    $0 --clean-backups
 
 EOF
 }
@@ -105,6 +111,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -u|--uninstall)
             UNINSTALL=true
+            shift
+            ;;
+        -c|--clean-backups)
+            CLEAN_BACKUPS=true
             shift
             ;;
         -f|--force)
@@ -312,7 +322,8 @@ install_rules() {
     
     if [ "$DRY_RUN" = true ]; then
         info "Would download repository to temporary directory"
-        info "Would install rules from configs/.amazonq/rules/ to $TARGET_DIR"
+        info "Would install context files from configs/.amazonq/profiles/ to $CONTEXT_DIR"
+        info "Would create profiles in $PROFILES_DIR"
         return 0
     fi
     
@@ -322,38 +333,65 @@ install_rules() {
         exit 1
     fi
     
-    # Check if rules directory exists in repo
-    local source_dir="$temp_dir/configs/.amazonq/rules"
+    # Check if profiles directory exists in repo
+    local source_dir="$temp_dir/configs/.amazonq/profiles"
     if [ ! -d "$source_dir" ]; then
-        error "Repository does not contain configs/.amazonq/rules/ directory"
+        error "Repository does not contain configs/.amazonq/profiles/ directory"
         exit 1
     fi
     
-    # Count rule files
-    local rule_count=$(find "$source_dir" -name "*.md" -type f | wc -l)
-    if [ "$rule_count" -eq 0 ]; then
-        error "No rule files (*.md) found in $source_dir"
+    # Count context files
+    local context_count=$(find "$source_dir" -name "*-context.md" -type f | wc -l)
+    if [ "$context_count" -eq 0 ]; then
+        error "No context files (*-context.md) found in $source_dir"
         exit 1
     fi
     
-    info "Found $rule_count rule file(s) to install"
+    info "Found $context_count context file(s) to install"
     
-    # Create target directory
-    mkdir -p "$TARGET_DIR"
+    # Create directories
+    mkdir -p "$CONTEXT_DIR"
+    mkdir -p "$PROFILES_DIR"
     
-    # Remove existing rule files (clean install)
-    if [ -d "$TARGET_DIR" ]; then
-        find "$TARGET_DIR" -name "*.md" -type f -delete 2>/dev/null || true
+    # Remove existing context files (clean install)
+    if [ -d "$CONTEXT_DIR" ]; then
+        find "$CONTEXT_DIR" -name "*-context.md" -type f -delete 2>/dev/null || true
     fi
     
-    # Install rule files
+    # Install context files and create profiles
     local installed_count=0
+    local profiles_created=0
+    
     while IFS= read -r -d '' rule_file; do
         local filename=$(basename "$rule_file")
-        cp "$rule_file" "$TARGET_DIR/"
-        success "Installed: $filename"
+        local context_path="$CONTEXT_DIR/$filename"
+        
+        # Copy context file
+        cp "$rule_file" "$context_path"
+        success "Installed context: $filename"
         ((installed_count++))
-    done < <(find "$source_dir" -name "*.md" -type f -print0)
+        
+        # Extract profile name from filename (remove -context.md suffix)
+        if [[ "$filename" =~ ^(.+)-context\.md$ ]]; then
+            local profile_name="${BASH_REMATCH[1]}"
+            local profile_dir="$PROFILES_DIR/$profile_name"
+            
+            # Create profile directory
+            mkdir -p "$profile_dir"
+            
+            # Create profile context.json with tilde notation for portability
+            cat > "$profile_dir/context.json" << EOF
+{
+  "paths": [
+    "~/.boomslang/$filename"
+  ],
+  "hooks": {}
+}
+EOF
+            success "Created profile: $profile_name"
+            ((profiles_created++))
+        fi
+    done < <(find "$source_dir" -name "*-context.md" -type f -print0)
     
     # Create installation marker
     cat > "$INSTALL_MARKER" << EOF
@@ -362,44 +400,61 @@ installed_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 repository=$REPO_URL
 branch=$BRANCH
 version=$SCRIPT_VERSION
-rule_count=$installed_count
+context_files=$installed_count
+profiles_created=$profiles_created
 EOF
     
-    success "Successfully installed $installed_count rule file(s) to $TARGET_DIR"
+    success "Successfully installed $installed_count context file(s) to $CONTEXT_DIR"
+    success "Successfully created $profiles_created profile(s) in $PROFILES_DIR"
 }
 
 uninstall_rules() {
     if [ ! -f "$INSTALL_MARKER" ]; then
         warn "No boomslang installation found (missing $INSTALL_MARKER)"
         if [ "$FORCE" = false ]; then
-            echo "Use --force to remove all .md files from $TARGET_DIR anyway"
+            echo "Use --force to remove boomslang files anyway"
             exit 1
         fi
     fi
     
-    if [ ! -d "$TARGET_DIR" ]; then
-        info "Target directory $TARGET_DIR does not exist"
-        return 0
+    # Count context files and profiles to be removed
+    local context_count=0
+    local profile_count=0
+    
+    if [ -d "$CONTEXT_DIR" ]; then
+        context_count=$(find "$CONTEXT_DIR" -name "*-context.md" -type f | wc -l)
     fi
     
-    # Count files to be removed
-    local rule_count=$(find "$TARGET_DIR" -name "*.md" -type f | wc -l)
+    # Count boomslang-created profiles
+    if [ -d "$PROFILES_DIR" ]; then
+        for profile_dir in "$PROFILES_DIR"/*; do
+            if [ -d "$profile_dir" ] && [ -f "$profile_dir/context.json" ]; then
+                # Check if profile references ~/.boomslang/
+                if grep -q "\.boomslang/" "$profile_dir/context.json" 2>/dev/null; then
+                    ((profile_count++))
+                fi
+            fi
+        done
+    fi
     
-    if [ "$rule_count" -eq 0 ]; then
-        info "No rule files found to remove"
+    if [ "$context_count" -eq 0 ] && [ "$profile_count" -eq 0 ]; then
+        info "No boomslang files found to remove"
         [ -f "$INSTALL_MARKER" ] && rm -f "$INSTALL_MARKER"
         return 0
     fi
     
     if [ "$DRY_RUN" = true ]; then
-        info "Would remove $rule_count rule file(s) from $TARGET_DIR"
+        info "Would remove $context_count context file(s) from $CONTEXT_DIR"
+        info "Would remove $profile_count profile(s) from $PROFILES_DIR"
         info "Would remove installation marker: $INSTALL_MARKER"
         return 0
     fi
     
     # Confirm removal unless forced
     if [ "$FORCE" = false ]; then
-        echo -e "${YELLOW}This will remove $rule_count rule file(s) from $TARGET_DIR${NC}"
+        echo -e "${YELLOW}This will remove:${NC}"
+        echo "  - $context_count context file(s) from $CONTEXT_DIR"
+        echo "  - $profile_count profile(s) from $PROFILES_DIR"
         read -p "Continue? (y/N): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -408,25 +463,100 @@ uninstall_rules() {
         fi
     fi
     
-    # Remove rule files
-    local removed_count=0
-    while IFS= read -r -d '' rule_file; do
-        local filename=$(basename "$rule_file")
-        rm "$rule_file"
-        success "Removed: $filename"
-        ((removed_count++))
-    done < <(find "$TARGET_DIR" -name "*.md" -type f -print0)
+    # Remove context files
+    local removed_context=0
+    if [ -d "$CONTEXT_DIR" ]; then
+        while IFS= read -r -d '' context_file; do
+            local filename=$(basename "$context_file")
+            rm "$context_file"
+            success "Removed context: $filename"
+            ((removed_context++))
+        done < <(find "$CONTEXT_DIR" -name "*-context.md" -type f -print0)
+    fi
+    
+    # Remove profiles that reference ~/.boomslang/
+    local removed_profiles=0
+    if [ -d "$PROFILES_DIR" ]; then
+        for profile_dir in "$PROFILES_DIR"/*; do
+            if [ -d "$profile_dir" ] && [ -f "$profile_dir/context.json" ]; then
+                if grep -q "\.boomslang/" "$profile_dir/context.json" 2>/dev/null; then
+                    local profile_name=$(basename "$profile_dir")
+                    rm -rf "$profile_dir"
+                    success "Removed profile: $profile_name"
+                    ((removed_profiles++))
+                fi
+            fi
+        done
+    fi
     
     # Remove installation marker
     [ -f "$INSTALL_MARKER" ] && rm -f "$INSTALL_MARKER"
     
-    # Remove target directory if empty
-    if [ -d "$TARGET_DIR" ] && [ -z "$(ls -A "$TARGET_DIR")" ]; then
-        rmdir "$TARGET_DIR"
-        info "Removed empty directory: $TARGET_DIR"
+    # Remove context directory if empty
+    if [ -d "$CONTEXT_DIR" ] && [ -z "$(ls -A "$CONTEXT_DIR")" ]; then
+        rmdir "$CONTEXT_DIR"
+        info "Removed empty directory: $CONTEXT_DIR"
     fi
     
-    success "Successfully removed $removed_count rule file(s)"
+    success "Successfully removed $removed_context context file(s) and $removed_profiles profile(s)"
+}
+
+clean_backups() {
+    local backups_dir="$CONTEXT_DIR/backups"
+    
+    if [ ! -d "$backups_dir" ]; then
+        info "No backup directory found at $backups_dir"
+        return 0
+    fi
+    
+    # Count backup directories
+    local backup_count=0
+    if [ -d "$backups_dir" ]; then
+        backup_count=$(find "$backups_dir" -mindepth 1 -maxdepth 1 -type d | wc -l)
+    fi
+    
+    if [ "$backup_count" -eq 0 ]; then
+        info "No backups found to remove"
+        return 0
+    fi
+    
+    if [ "$DRY_RUN" = true ]; then
+        info "Would remove $backup_count backup(s) from $backups_dir"
+        find "$backups_dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \\; | sed 's/^/  - /'
+        return 0
+    fi
+    
+    # Confirm removal unless forced
+    if [ "$FORCE" = false ]; then
+        echo -e "${YELLOW}This will remove $backup_count backup(s) from:${NC}"
+        echo "  $backups_dir"
+        echo
+        find "$backups_dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \\; | sed 's/^/  - /'
+        echo
+        read -p "Continue? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            info "Clean backups cancelled"
+            exit 0
+        fi
+    fi
+    
+    # Remove all backup directories
+    local removed_count=0
+    while IFS= read -r -d '' backup_dir; do
+        local backup_name=$(basename "$backup_dir")
+        rm -rf "$backup_dir"
+        success "Removed backup: $backup_name"
+        ((removed_count++))
+    done < <(find "$backups_dir" -mindepth 1 -maxdepth 1 -type d -print0)
+    
+    # Remove backups directory if empty
+    if [ -d "$backups_dir" ] && [ -z "$(ls -A "$backups_dir")" ]; then
+        rmdir "$backups_dir"
+        info "Removed empty backups directory"
+    fi
+    
+    success "Successfully removed $removed_count backup(s)"
 }
 
 show_status() {
@@ -441,11 +571,30 @@ show_status() {
         info "No boomslang installation found"
     fi
     
-    if [ -d "$TARGET_DIR" ]; then
-        local rule_count=$(find "$TARGET_DIR" -name "*.md" -type f | wc -l)
-        info "Current rule files in $TARGET_DIR: $rule_count"
-        if [ "$rule_count" -gt 0 ]; then
-            find "$TARGET_DIR" -name "*.md" -type f -exec basename {} \; | sed 's/^/  - /'
+    # Show context files
+    if [ -d "$CONTEXT_DIR" ]; then
+        local context_count=$(find "$CONTEXT_DIR" -name "*-context.md" -type f | wc -l)
+        info "Context files in $CONTEXT_DIR: $context_count"
+        if [ "$context_count" -gt 0 ]; then
+            find "$CONTEXT_DIR" -name "*-context.md" -type f -exec basename {} \; | sed 's/^/  - /'
+        fi
+    fi
+    
+    # Show profiles
+    if [ -d "$PROFILES_DIR" ]; then
+        local profile_count=0
+        info "Boomslang profiles in $PROFILES_DIR:"
+        for profile_dir in "$PROFILES_DIR"/*; do
+            if [ -d "$profile_dir" ] && [ -f "$profile_dir/context.json" ]; then
+                if grep -q "\.boomslang/" "$profile_dir/context.json" 2>/dev/null; then
+                    local profile_name=$(basename "$profile_dir")
+                    echo "  - $profile_name"
+                    ((profile_count++))
+                fi
+            fi
+        done
+        if [ "$profile_count" -eq 0 ]; then
+            echo "  (none found)"
         fi
     fi
 }
@@ -460,6 +609,13 @@ main() {
         uninstall_rules
         log ""
         success "Uninstall completed successfully!"
+        return 0
+    fi
+    
+    if [ "$CLEAN_BACKUPS" = true ]; then
+        clean_backups
+        log ""
+        success "Clean backups completed successfully!"
         return 0
     fi
     
@@ -493,7 +649,8 @@ main() {
     
     log ""
     success "Installation completed successfully!"
-    info "Rules are now active in Amazon Q Developer CLI"
+    info "Profiles are now available in Amazon Q Developer CLI"
+    info "Use 'q chat' then '/profile set <profile-name>' to switch profiles"
 }
 
 # Run main function

@@ -7,18 +7,21 @@
     "default_branch": "main"
   },
   "installation": {
-    "target_dir": "$HOME/.amazonq/rules",
-    "source_dir": "configs/.amazonq/rules"
+    "context_dir": "$HOME/.boomslang",
+    "profiles_dir": "$HOME/.aws/amazonq/profiles",
+    "source_dir": "configs/.amazonq/profiles"
   },
   "organization": {
     "name": "Your Organization",
     "contact": "devtools@yourorg.com",
     "maintainer": "Platform Team"
   },
-  "rules": {
+  "profiles": {
     "included": [
-      "reviewer-context.md"
+      "engineer-context.md",
+      "reviewer-context.md", 
+      "architect-context.md"
     ],
-    "description": "Context rules for Amazon Q Developer CLI including code review workflows"
+    "description": "Amazon Q Developer CLI profiles for different development roles and workflows"
   }
 }

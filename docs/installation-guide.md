@@ -20,7 +20,7 @@ chmod +x boomslang-install.sh
 
 1. Fork this repository
 2. Configure `ORG_REPO_URL` in `boomslang-install.sh` with your repository URL
-3. Customize the context rules in `configs/.amazonq/rules/`
+3. Customize the context files in `configs/.amazonq/profiles/`
 4. Update `install-config.json` with your organization details
 5. Distribute the pre-configured install script to your team
 
@@ -60,43 +60,56 @@ cat ~/.ssh/id_ed25519.pub
 
 ```bash
 # Install from default repository
-./install.sh
+./boomslang-install.sh
 
 # Install from custom repository
-./install.sh --repo gitlab.acme.com/devtools/amazonq-standards
+./boomslang-install.sh --repo gitlab.acme.com/devtools/amazonq-standards
 
 # Install from specific branch
-./install.sh --repo gitlab.acme.com/devtools/amazonq-standards --branch develop
+./boomslang-install.sh --repo gitlab.acme.com/devtools/amazonq-standards --branch develop
 ```
 
 ### Dry Run Mode
 
 ```bash
 # See what would be installed without making changes
-./install.sh --dry-run
+./boomslang-install.sh --dry-run
 
 # Dry run with custom repository
-./install.sh --dry-run --repo gitlab.acme.com/devtools/amazonq-standards
+./boomslang-install.sh --dry-run --repo gitlab.acme.com/devtools/amazonq-standards
 ```
 
 ### Uninstallation
 
 ```bash
 # Uninstall with confirmation prompt
-./install.sh --uninstall
+./boomslang-install.sh --uninstall
 
 # Force uninstall without prompts
-./install.sh --uninstall --force
+./boomslang-install.sh --uninstall --force
 
 # Dry run uninstall to see what would be removed
-./install.sh --uninstall --dry-run
+./boomslang-install.sh --uninstall --dry-run
+```
+
+### Backup Management
+
+```bash
+# Remove all backup files with confirmation
+./boomslang-install.sh --clean-backups
+
+# Force remove all backups without prompts
+./boomslang-install.sh --clean-backups --force
+
+# Dry run to see what backups would be removed
+./boomslang-install.sh --clean-backups --dry-run
 ```
 
 ### Quiet Mode
 
 ```bash
 # Install with minimal output (errors only)
-./install.sh --quiet --repo gitlab.acme.com/devtools/amazonq-standards
+./boomslang-install.sh --quiet --repo gitlab.acme.com/devtools/amazonq-standards
 ```
 
 ## Command Line Options
@@ -107,6 +120,7 @@ cat ~/.ssh/id_ed25519.pub
 | `-b, --branch BRANCH` | Git branch to install from | `--branch develop` |
 | `-d, --dry-run` | Show what would be done without making changes | `--dry-run` |
 | `-u, --uninstall` | Remove installed standards | `--uninstall` |
+| `-c, --clean-backups` | Remove all backup files | `--clean-backups` |
 | `-f, --force` | Force operation without prompts | `--force` |
 | `-q, --quiet` | Suppress non-error output | `--quiet` |
 | `-h, --help` | Show help message | `--help` |
@@ -117,9 +131,9 @@ cat ~/.ssh/id_ed25519.pub
 The installer:
 
 1. **Downloads repository** using `glab` or SSH
-2. **Backs up existing rules** to `~/.amazonq/backup/backup-YYYYMMDD-HHMMSS/`
-3. **Installs rule files** from `configs/.amazonq/rules/*.md` to `~/.amazonq/rules/`
-4. **Creates installation marker** at `~/.amazonq/rules/.boomslang-installed`
+2. **Installs context files** from `configs/.amazonq/profiles/*.md` to `~/.boomslang/`
+3. **Creates profiles** in `~/.aws/amazonq/profiles/<profile-name>/context.json`
+4. **Creates installation marker** at `~/.boomslang/.boomslang-installed`
 
 ### Installation Marker
 
@@ -131,21 +145,63 @@ installed_at=2024-01-15T10:30:00Z
 repository=gitlab.acme.com/devtools/amazonq-standards
 branch=main
 version=0.1.0
-rule_count=3
+context_files=3
+profiles_created=3
 ```
 
 ## Directory Structure
 
 ```
-~/.amazonq/
-├── rules/                          # Amazon Q context rules
-│   ├── code-reviewer.md           # Installed rule files
-│   ├── security-analyst.md
-│   └── .boomslang-installed       # Installation marker
-└── backup/                        # Automatic backups
-    ├── backup-20240115-103000/    # Timestamped backups
-    └── backup-20240115-110000/
+~/.boomslang/                       # Centralized context files
+├── engineer-context.md            # Engineering context
+├── reviewer-context.md            # Code review context
+├── architect-context.md           # Architecture context
+└── .boomslang-installed           # Installation marker
+
+~/.aws/amazonq/profiles/           # Amazon Q profiles
+├── engineer/
+│   └── context.json               # Points to ~/.boomslang/engineer-context.md
+├── reviewer/
+│   └── context.json               # Points to ~/.boomslang/reviewer-context.md
+└── architect/
+    └── context.json               # Points to ~/.boomslang/architect-context.md
 ```
+
+## Using Profiles
+
+After installation, you can use the profiles in Amazon Q Developer CLI:
+
+### Switching Profiles
+
+```bash
+# Start Amazon Q chat
+q chat
+
+# List available profiles
+/profile
+
+# Switch to engineer profile for development tasks
+/profile set engineer
+
+# Switch to reviewer profile for code reviews
+/profile set reviewer
+
+# Switch to architect profile for system design
+/profile set architect
+
+# Return to default profile
+/profile set default
+```
+
+### Profile-Specific Behavior
+
+Each profile provides specialized context:
+
+- **Engineer**: Focused on code implementation, debugging, and best practices
+- **Reviewer**: Optimized for code review, security analysis, and quality assessment  
+- **Architect**: Designed for system design, scalability, and technical strategy
+
+The profiles use keyword activation, so they'll automatically adjust their behavior based on your requests.
 
 ## Troubleshooting
 
@@ -169,20 +225,20 @@ rule_count=3
 
 ### Repository Structure Issues
 
-**Problem**: `Repository does not contain configs/.amazonq/rules/ directory`
+**Problem**: `Repository does not contain configs/.amazonq/profiles/ directory`
 
 **Solutions**:
 1. Verify the repository has the correct directory structure
 2. Check if you're using the correct branch
-3. Ensure rule files exist in `configs/.amazonq/rules/*.md`
+3. Ensure context files exist in `configs/.amazonq/profiles/*.md`
 
-### No Rule Files Found
+### No Context Files Found
 
-**Problem**: `No rule files (*.md) found`
+**Problem**: `No context files (*.md) found`
 
 **Solutions**:
-1. Check that rule files have `.md` extension
-2. Verify files exist in `configs/.amazonq/rules/` directory
+1. Check that context files have `.md` extension
+2. Verify files exist in `configs/.amazonq/profiles/` directory
 3. Ensure files aren't empty or corrupted
 
 ## Advanced Usage
@@ -238,17 +294,18 @@ deploy_standards:
 
 ```bash
 # Create manual backup
-cp -r ~/.amazonq/rules ~/.amazonq/manual-backup-$(date +%Y%m%d)
+mkdir -p ~/.boomslang/backups
+cp -r ~/.boomslang/*.md ~/.boomslang/backups/backup-$(date +%Y%m%d)/
 ```
 
 ### Restore from Backup
 
 ```bash
 # List available backups
-ls ~/.amazonq/backup/
+ls ~/.boomslang/backups/
 
 # Restore from specific backup
-cp -r ~/.amazonq/backup/backup-20240115-103000/rules/* ~/.amazonq/rules/
+cp -r ~/.boomslang/backups/backup-20240115/* ~/.boomslang/
 ```
 
 ### Recovery from Failed Installation
@@ -257,14 +314,14 @@ If installation fails mid-process:
 
 ```bash
 # Check what was installed
-ls -la ~/.amazonq/rules/
+ls -la ~/.boomslang/
 
 # Remove partial installation
-./install.sh --uninstall --force
+./boomslang-install.sh --uninstall --force
 
 # Restore from backup if needed
-cp -r ~/.amazonq/backup/backup-LATEST/* ~/.amazonq/rules/
+cp -r ~/.boomslang/backups/backup-LATEST/* ~/.boomslang/
 
 # Retry installation
-./install.sh --repo your-repo
+./boomslang-install.sh --repo your-repo
 ```

@@ -18,14 +18,15 @@ curl -sSL https://gitlab.yourorg.com/devtools/amazonq-standards/-/raw/main/booms
 
 1. **Fork this repository**
 2. **Configure the install script** by setting `ORG_REPO_URL` in `boomslang-install.sh`
-3. **Customize the context rules** in `configs/.amazonq/rules/`
+3. **Customize the context files** in `configs/.amazonq/profiles/`
 4. **Update configuration** in `install-config.json`
 5. **Validate rules** with `./scripts/validate-rules.sh`
 6. **Distribute** the pre-configured install script to your team
 
 ## What's Included
 
-- **📋 Context Rules**: Keyword-activated AI behavior for code review, security analysis, etc.
+- **👥 Multiple Profiles**: Role-based profiles (engineer, reviewer, architect) with specialized contexts
+- **📋 Context Rules**: Keyword-activated AI behavior for different development workflows  
 - **🔧 Install Script**: Lightweight installer with dry-run, uninstall, and authentication support
 - **✅ Validation**: Rule quality checking and syntax validation
 - **📚 Documentation**: Comprehensive guides for setup and customization
@@ -42,8 +43,10 @@ curl -sSL https://gitlab.yourorg.com/devtools/amazonq-standards/-/raw/main/booms
 ## Project Structure
 
 ```
-├── configs/.amazonq/rules/     # Context rules for Amazon Q
-│   └── reviewer-context.md     # Example: Code review context
+├── configs/.amazonq/profiles/  # Context files for Amazon Q profiles
+│   ├── engineer-context.md     # Engineering development context
+│   ├── reviewer-context.md     # Code review and analysis context  
+│   └── architect-context.md    # System architecture context
 ├── scripts/                    # Utility scripts
 │   └── validate-rules.sh       # Rule validation
 ├── docs/                       # Documentation
@@ -90,6 +93,24 @@ ssh-keygen -t ed25519 -C "your.email@yourorg.com"
 
 # Force uninstall without prompts
 ./boomslang-install.sh --uninstall --force
+```
+
+### Using Profiles
+
+After installation, profiles are available in Amazon Q:
+
+```bash
+# Start Amazon Q chat
+q chat
+
+# Switch to engineer profile for development tasks
+/profile set engineer
+
+# Switch to reviewer profile for code reviews  
+/profile set reviewer
+
+# Switch to architect profile for system design
+/profile set architect
 ```
 
 ## Contributing
