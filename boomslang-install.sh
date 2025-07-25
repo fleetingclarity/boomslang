@@ -7,7 +7,7 @@ set -e
 
 # Script configuration - MAINTAINERS: Update these values for your organization
 SCRIPT_VERSION="0.1.0"
-ORG_REPO_URL="gitlab.example.com/org/amazonq-standards"  # Set by maintainer for zero-config installation
+ORG_REPO_URL="github.com/fleetingclarity/boomslang"  # Set by maintainer for zero-config installation
 ORG_BRANCH="main"
 
 # Runtime configuration
@@ -148,7 +148,6 @@ detect_repository() {
     if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; then
         detected_repo=$(git remote get-url origin 2>/dev/null || echo "")
         if [ -n "$detected_repo" ]; then
-            info "Auto-detected repository: $detected_repo"
             echo "$detected_repo"
             return 0
         fi
@@ -156,7 +155,6 @@ detect_repository() {
     
     # If ORG_REPO_URL is set by maintainer, use that
     if [ -n "$ORG_REPO_URL" ]; then
-        info "Using pre-configured repository: $ORG_REPO_URL"
         echo "$ORG_REPO_URL"
         return 0
     fi
@@ -216,14 +214,15 @@ check_dependencies() {
         missing_deps+=("git")
     fi
     
-    # Check for glab (preferred) or ssh
-    if ! command -v glab >/dev/null 2>&1 && ! command -v ssh >/dev/null 2>&1; then
-        missing_deps+=("glab or ssh")
+    # Check for glab or gh (at least one is required)
+    if ! command -v glab >/dev/null 2>&1 && ! command -v gh >/dev/null 2>&1; then
+        missing_deps+=("glab or gh")
     fi
     
     if [ ${#missing_deps[@]} -gt 0 ]; then
         error "Missing required dependencies: ${missing_deps[*]}"
         echo "Please install the missing tools and try again."
+        echo "Recommended: Install 'glab' for GitLab or 'gh' for GitHub repositories"
         exit 1
     fi
 }
@@ -237,12 +236,21 @@ check_glab_auth() {
     return 1
 }
 
+check_gh_auth() {
+    if command -v gh >/dev/null 2>&1; then
+        if gh auth status >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
 download_with_glab() {
     local repo="$1"
     local branch="$2"
     local temp_dir="$3"
     
-    info "Downloading using glab..."
+    info "Downloading context files using glab..."
     
     # Parse repo URL to get project path
     local project_path
@@ -257,59 +265,129 @@ download_with_glab() {
     # Remove .git suffix if present
     project_path="${project_path%.git}"
     
-    if glab repo archive "$project_path" --sha "$branch" --format tar.gz -o "$temp_dir/archive.tar.gz" >/dev/null 2>&1; then
-        cd "$temp_dir"
-        tar -xzf archive.tar.gz --strip-components=1
+    # Create the directory structure
+    mkdir -p "$temp_dir/configs/.amazonq/profiles"
+    
+    # Download individual context files and install-config.json
+    local files_downloaded=0
+    
+    # Try to download install-config.json
+    if glab raw -b "$branch" "$project_path" install-config.json > "$temp_dir/install-config.json" 2>/dev/null; then
+        ((files_downloaded++))
+        info "Downloaded install-config.json"
+    fi
+    
+    # Download each context file
+    for context_file in "engineer-context.md" "reviewer-context.md" "architect-context.md"; do
+        if glab raw -b "$branch" "$project_path" "configs/.amazonq/profiles/$context_file" > "$temp_dir/configs/.amazonq/profiles/$context_file" 2>/dev/null; then
+            ((files_downloaded++))
+            info "Downloaded $context_file"
+        fi
+    done
+    
+    # Return success if we downloaded at least one context file
+    if [ "$files_downloaded" -gt 0 ]; then
         return 0
     fi
     
     return 1
 }
 
-download_with_ssh() {
+download_with_gh() {
     local repo="$1"
     local branch="$2"
     local temp_dir="$3"
     
-    info "Downloading using SSH..."
+    info "Downloading context files using gh..."
     
-    # Convert HTTPS URL to SSH if needed
-    local ssh_url="$repo"
-    if [[ "$repo" =~ ^https://([^/]+)/(.+)$ ]]; then
-        local host="${BASH_REMATCH[1]}"
-        local path="${BASH_REMATCH[2]}"
-        ssh_url="git@$host:$path"
+    # Parse repo URL to get owner/repo format  
+    local repo_path=""
+    if [[ "$repo" =~ ^https?://github\.com/(.+)$ ]]; then
+        repo_path="${BASH_REMATCH[1]%.git}"
+    elif [[ "$repo" =~ ^github\.com/(.+)$ ]]; then
+        repo_path="${BASH_REMATCH[1]%.git}"
+    elif [[ "$repo" =~ ^([^/]+/[^/]+)$ ]]; then
+        repo_path="$repo"
+    else
+        return 1
     fi
     
-    # Add .git if not present
-    if [[ ! "$ssh_url" =~ \.git$ ]]; then
-        ssh_url="$ssh_url.git"
+    # Create the directory structure
+    mkdir -p "$temp_dir/configs/.amazonq/profiles"
+    
+    # Download individual context files and install-config.json
+    local files_downloaded=0
+    
+    # Try to download install-config.json  
+    if gh api "repos/$repo_path/contents/install-config.json?ref=$branch" | jq -r '.content' > "$temp_dir/install-config.b64"; then
+        if python3 -c "import base64; print(base64.b64decode(open('$temp_dir/install-config.b64').read()).decode('utf-8'), end='')" > "$temp_dir/install-config.json" 2>/dev/null; then
+            rm "$temp_dir/install-config.b64"
+            ((files_downloaded++))
+            info "Downloaded install-config.json"
+        else
+            warn "Failed to decode install-config.json"
+        fi
+    else
+        warn "Failed to download install-config.json"
     fi
     
-    if git clone --depth 1 --branch "$branch" "$ssh_url" "$temp_dir" >/dev/null 2>&1; then
+    # Download each context file
+    for context_file in "engineer-context.md" "reviewer-context.md" "architect-context.md"; do
+        if gh api "repos/$repo_path/contents/configs/.amazonq/profiles/$context_file?ref=$branch" | jq -r '.content' > "$temp_dir/$context_file.b64" 2>/dev/null; then  
+            if python3 -c "import base64; print(base64.b64decode(open('$temp_dir/$context_file.b64').read()).decode('utf-8'), end='')" > "$temp_dir/configs/.amazonq/profiles/$context_file" 2>/dev/null; then
+                rm "$temp_dir/$context_file.b64"
+                # Check if file is not empty
+                if [ -s "$temp_dir/configs/.amazonq/profiles/$context_file" ]; then
+                    ((files_downloaded++))
+                    info "Downloaded $context_file"
+                else
+                    rm -f "$temp_dir/configs/.amazonq/profiles/$context_file"
+                    warn "Downloaded empty $context_file"
+                fi
+            else
+                warn "Failed to decode $context_file"
+            fi
+        else
+            warn "Failed to download $context_file"
+        fi
+    done
+    
+    # Return success if we downloaded at least one context file
+    if [ "$files_downloaded" -gt 0 ]; then
         return 0
     fi
     
     return 1
 }
+
 
 download_repo() {
     local repo="$1"
     local branch="$2"
     local temp_dir="$3"
     
-    # Try glab first if authenticated
+    # Try glab first if authenticated (works for GitLab repos)
     if check_glab_auth; then
         if download_with_glab "$repo" "$branch" "$temp_dir"; then
             return 0
         fi
-        warn "glab download failed, trying SSH..."
+        warn "glab download failed, trying gh..."
     fi
     
-    # Fallback to SSH
-    if download_with_ssh "$repo" "$branch" "$temp_dir"; then
-        return 0
+    # Try gh if authenticated (works for GitHub repos)
+    if check_gh_auth; then
+        if download_with_gh "$repo" "$branch" "$temp_dir"; then
+            return 0
+        fi
+        warn "gh download failed..."
     fi
+    
+    # If we get here, both methods failed
+    error "Failed to download repository files"
+    echo "Please ensure you are authenticated with either:"
+    echo "  - 'glab auth login' for GitLab repositories"
+    echo "  - 'gh auth login' for GitHub repositories"
+    echo "And that you have access to the repository: $repo"
     
     return 1
 }
@@ -522,7 +600,7 @@ clean_backups() {
     
     if [ "$DRY_RUN" = true ]; then
         info "Would remove $backup_count backup(s) from $backups_dir"
-        find "$backups_dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \\; | sed 's/^/  - /'
+        find "$backups_dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sed 's/^/  - /'
         return 0
     fi
     
@@ -531,7 +609,7 @@ clean_backups() {
         echo -e "${YELLOW}This will remove $backup_count backup(s) from:${NC}"
         echo "  $backups_dir"
         echo
-        find "$backups_dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \\; | sed 's/^/  - /'
+        find "$backups_dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sed 's/^/  - /'
         echo
         read -p "Continue? (y/N): " -n 1 -r
         echo
@@ -628,6 +706,7 @@ main() {
             echo "use --repo to specify the repository manually."
             exit 1
         fi
+        info "Auto-detected repository: $REPO_URL"
     fi
     
     # Set default branch if not specified
@@ -635,8 +714,10 @@ main() {
         BRANCH="$ORG_BRANCH"
     fi
     
-    # Load configuration from repository
-    load_config "$REPO_URL" "$BRANCH"
+    # Try to load configuration from repository (optional)
+    if ! load_config "$REPO_URL" "$BRANCH"; then
+        warn "Could not load remote configuration, using defaults"
+    fi
     
     if [ "$DRY_RUN" = true ]; then
         log "${YELLOW}🧪 DRY RUN MODE - No changes will be made${NC}"
