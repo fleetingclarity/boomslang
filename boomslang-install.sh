@@ -6,7 +6,7 @@
 set -e
 
 # Script configuration - MAINTAINERS: Update these values for your organization
-SCRIPT_VERSION="0.1.0"
+SCRIPT_VERSION="0.2.0"
 ORG_REPO_URL="github.com/fleetingclarity/boomslang"  # Set by maintainer for zero-config installation
 ORG_BRANCH="main"
 
