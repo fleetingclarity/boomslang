@@ -6,6 +6,7 @@ This directory contains utility scripts for managing Amazon Q Developer CLI stan
 
 - `validate-profiles.sh` - Validates context profiles before distribution
 - `test-local-install.sh` - Tests local installation workflow
+- `release.sh` - Creates boomslang releases (maintainer use only)
 - `../boomslang-install.sh` - Main installation script for end users
 - `../install-config.json` - Installation configuration
 
