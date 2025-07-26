@@ -5,6 +5,7 @@ This directory contains utility scripts for managing Amazon Q Developer CLI stan
 ## Files
 
 - `validate-rules.sh` - Validates context rules before distribution
+- `test-local-install.sh` - Tests local installation workflow
 - `../boomslang-install.sh` - Main installation script for end users
 - `../install-config.json` - Installation configuration
 
@@ -29,6 +30,9 @@ This checks:
 Test your installation process:
 
 ```bash
+# Test local installation workflow (recommended)
+./test-local-install.sh
+
 # Dry run to see what would happen  
 ../boomslang-install.sh --dry-run --repo gitlab.yourorg.com/devtools/amazonq-standards
 

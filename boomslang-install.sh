@@ -287,8 +287,11 @@ download_with_glab() {
         info "Downloaded install-config.json"
     fi
     
-    # Download each context file
-    for context_file in "engineer-context.md" "reviewer-context.md" "architect-context.md"; do
+    # Try to list and download all non-example context files
+    # Note: This is a fallback approach since we can't easily list remote directory contents
+    # Maintainers should ensure their repositories contain the actual profile files, not just examples
+    local common_profiles=("engineer-context.md" "reviewer-context.md" "architect-context.md" "security-architect-context.md" "senior-engineer-context.md" "tech-lead-context.md")
+    for context_file in "${common_profiles[@]}"; do
         if glab raw -b "$branch" "$project_path" "configs/.amazonq/profiles/$context_file" > "$temp_dir/configs/.amazonq/profiles/$context_file" 2>/dev/null; then
             ((files_downloaded++))
             info "Downloaded $context_file"
@@ -341,8 +344,9 @@ download_with_gh() {
         warn "Failed to download install-config.json"
     fi
     
-    # Download each context file
-    for context_file in "engineer-context.md" "reviewer-context.md" "architect-context.md"; do
+    # Try to download common non-example context files
+    local common_profiles=("engineer-context.md" "reviewer-context.md" "architect-context.md" "security-architect-context.md" "senior-engineer-context.md" "tech-lead-context.md")
+    for context_file in "${common_profiles[@]}"; do
         if gh api "repos/$repo_path/contents/configs/.amazonq/profiles/$context_file?ref=$branch" | jq -r '.content' > "$temp_dir/$context_file.b64" 2>/dev/null; then  
             if python3 -c "import base64; print(base64.b64decode(open('$temp_dir/$context_file.b64').read()).decode('utf-8'), end='')" > "$temp_dir/configs/.amazonq/profiles/$context_file" 2>/dev/null; then
                 rm "$temp_dir/$context_file.b64"
@@ -358,7 +362,8 @@ download_with_gh() {
                 warn "Failed to decode $context_file"
             fi
         else
-            warn "Failed to download $context_file"
+            # Don't warn for missing common profiles - they're optional
+            continue
         fi
     done
     
@@ -391,12 +396,17 @@ install_from_local() {
     # Create temp directory structure and copy files
     mkdir -p "$temp_dir/configs/.amazonq/profiles"
     
-    # Copy context files
+    # Copy context files (skip example files)
     local files_copied=0
     for context_file in "$profiles_source"/*-context.md; do
         if [ -f "$context_file" ]; then
-            cp "$context_file" "$temp_dir/configs/.amazonq/profiles/"
             local filename=$(basename "$context_file")
+            # Skip example files
+            if [[ "$filename" =~ ^example- ]]; then
+                info "Skipped example file: $filename"
+                continue
+            fi
+            cp "$context_file" "$temp_dir/configs/.amazonq/profiles/"
             info "Copied $filename"
             ((files_copied++))
         fi
