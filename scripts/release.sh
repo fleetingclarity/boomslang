@@ -250,11 +250,12 @@ generate_changelog_content() {
     local temp_file=$(mktemp)
     local changelog_content=""
     
-    # Get commits since last release
+    # Get commits since last release - use process substitution to avoid pipe issues
+    local commits_output
     if [ -n "$since_ref" ]; then
-        git log --pretty=format:"%s|%H|%an" "${since_ref}..HEAD" > "$temp_file"
+        commits_output=$(git log --pretty=format:"%s" "${since_ref}..HEAD")
     else
-        git log --pretty=format:"%s|%H|%an" > "$temp_file"
+        commits_output=$(git log --pretty=format:"%s")
     fi
     
     # Parse commits by type
@@ -264,9 +265,11 @@ generate_changelog_content() {
     local breaking=()
     local other=()
     
-    while IFS='|' read -r subject hash author; do
+    # Process each commit subject line by line
+    while IFS= read -r subject; do
+        [ -z "$subject" ] && continue
         if [[ "$subject" =~ ^feat(\(.+\))?!?: ]]; then
-            if [[ "$subject" =~ ! ]] || grep -q "BREAKING CHANGE" <<< "$(git show --format=%B -s "$hash")"; then
+            if [[ "$subject" =~ ! ]]; then
                 breaking+=("$subject")
             else
                 features+=("$subject")
@@ -280,7 +283,7 @@ generate_changelog_content() {
         else
             other+=("$subject")
         fi
-    done < "$temp_file"
+    done <<< "$commits_output"
     
     # Build changelog content
     if [ ${#breaking[@]} -gt 0 ]; then
