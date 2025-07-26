@@ -4,7 +4,7 @@ This directory contains utility scripts for managing Amazon Q Developer CLI stan
 
 ## Files
 
-- `validate-rules.sh` - Validates context profiles before distribution
+- `validate-profiles.sh` - Validates context profiles before distribution
 - `test-local-install.sh` - Tests local installation workflow
 - `../boomslang-install.sh` - Main installation script for end users
 - `../install-config.json` - Installation configuration
@@ -16,7 +16,7 @@ This directory contains utility scripts for managing Amazon Q Developer CLI stan
 Before distributing your customized profiles, validate them:
 
 ```bash
-./scripts/validate-rules.sh
+./scripts/validate-profiles.sh
 ```
 
 This checks:
@@ -56,7 +56,7 @@ cd amazonq-standards
 
 ## Validation Features
 
-The `validate-rules.sh` script provides comprehensive checking:
+The `validate-profiles.sh` script provides comprehensive checking:
 
 ### File Structure Validation
 - Ensures `configs/.amazonq/profiles/` directory exists
@@ -91,7 +91,7 @@ The `validate-rules.sh` script provides comprehensive checking:
 1. Fork the boomslang repository
 2. Customize profiles in `configs/.amazonq/profiles/`
 3. Update `install-config.json` with organization details
-4. Validate profiles with `./scripts/validate-rules.sh`
+4. Validate profiles with `./scripts/validate-profiles.sh`
 
 ### Distribution Options
 
@@ -121,7 +121,7 @@ cd amazonq-standards
 ## Testing and Validation
 
 ### Before Distribution
-1. Run `./scripts/validate-rules.sh` to check profile quality
+1. Run `./scripts/validate-profiles.sh` to check profile quality
 2. Test installation with `./boomslang-install.sh --dry-run`
 3. Test uninstallation with `./boomslang-install.sh --uninstall --dry-run`
 4. Verify profiles work with Amazon Q Developer CLI

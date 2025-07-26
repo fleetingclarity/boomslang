@@ -100,7 +100,7 @@ configs/
     └── profiles/
         └── reviewer-context.md
 scripts/
-└── validate-rules.sh
+└── validate-profiles.sh
 docs/
 └── installation-guide.md
 boomslang-install.sh

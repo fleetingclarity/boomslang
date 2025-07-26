@@ -20,7 +20,7 @@ curl -sSL https://gitlab.yourorg.com/devtools/amazonq-standards/-/raw/main/booms
 2. **Configure the install script** by setting `ORG_REPO_URL` in `boomslang-install.sh`
 3. **Customize the context files** in `configs/.amazonq/profiles/`
 4. **Update configuration** in `install-config.json`
-5. **Validate profiles** with `./scripts/validate-rules.sh`
+5. **Validate profiles** with `./scripts/validate-profiles.sh`
 6. **Distribute** the pre-configured install script to your team
 
 ## What's Included
@@ -48,7 +48,7 @@ curl -sSL https://gitlab.yourorg.com/devtools/amazonq-standards/-/raw/main/booms
 │   ├── reviewer-context.md     # Code review and analysis context  
 │   └── architect-context.md    # System architecture context
 ├── scripts/                    # Utility scripts
-│   └── validate-rules.sh       # Profile validation
+│   └── validate-profiles.sh    # Profile validation
 ├── docs/                       # Documentation
 │   └── installation-guide.md   # Detailed installation guide
 ├── boomslang-install.sh        # Main installation script

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# validate-rules.sh - Validate Amazon Q context rules before publishing
+# validate-profiles.sh - Validate Amazon Q context profiles before publishing
 
 set -e
 
