@@ -287,16 +287,49 @@ download_with_glab() {
         info "Downloaded install-config.json"
     fi
     
-    # Try to list and download all non-example context files
-    # Note: This is a fallback approach since we can't easily list remote directory contents
-    # Maintainers should ensure their repositories contain the actual profile files, not just examples
-    local common_profiles=("engineer-context.md" "reviewer-context.md" "architect-context.md" "security-architect-context.md" "senior-engineer-context.md" "tech-lead-context.md")
-    for context_file in "${common_profiles[@]}"; do
-        if glab raw -b "$branch" "$project_path" "configs/.amazonq/profiles/$context_file" > "$temp_dir/configs/.amazonq/profiles/$context_file" 2>/dev/null; then
-            ((files_downloaded++))
-            info "Downloaded $context_file"
+    # Dynamically discover and download all non-example context files
+    info "Discovering available profiles in repository..."
+    
+    # Try to list directory contents to find all *-context.md files
+    local profile_files=()
+    
+    # Use glab to list files in the profiles directory
+    if command -v glab >/dev/null 2>&1; then
+        # Get directory listing from GitLab API
+        local dir_contents
+        dir_contents=$(glab api "projects/${project_path//\//%2F}/repository/tree?path=configs/.amazonq/profiles&ref=$branch" 2>/dev/null | jq -r '.[] | select(.type=="blob" and (.name | endswith("-context.md")) and (.name | startswith("example-") | not)) | .name' 2>/dev/null || echo "")
+        
+        if [ -n "$dir_contents" ]; then
+            while IFS= read -r filename; do
+                if [ -n "$filename" ]; then
+                    profile_files+=("$filename")
+                fi
+            done <<< "$dir_contents"
         fi
-    done
+    fi
+    
+    # If we found files via directory listing, download them
+    if [ ${#profile_files[@]} -gt 0 ]; then
+        info "Found ${#profile_files[@]} profile(s): ${profile_files[*]}"
+        for context_file in "${profile_files[@]}"; do
+            if glab raw -b "$branch" "$project_path" "configs/.amazonq/profiles/$context_file" > "$temp_dir/configs/.amazonq/profiles/$context_file" 2>/dev/null; then
+                ((files_downloaded++))
+                info "Downloaded $context_file"
+            else
+                warn "Failed to download $context_file"
+            fi
+        done
+    else
+        # Fallback to common profile names if directory listing failed
+        warn "Could not discover profiles, trying common names..."
+        local common_profiles=("engineer-context.md" "reviewer-context.md" "architect-context.md" "security-architect-context.md" "senior-engineer-context.md" "tech-lead-context.md")
+        for context_file in "${common_profiles[@]}"; do
+            if glab raw -b "$branch" "$project_path" "configs/.amazonq/profiles/$context_file" > "$temp_dir/configs/.amazonq/profiles/$context_file" 2>/dev/null; then
+                ((files_downloaded++))
+                info "Downloaded $context_file"
+            fi
+        done
+    fi
     
     # Return success if we downloaded at least one context file
     if [ "$files_downloaded" -gt 0 ]; then
@@ -344,28 +377,68 @@ download_with_gh() {
         warn "Failed to download install-config.json"
     fi
     
-    # Try to download common non-example context files
-    local common_profiles=("engineer-context.md" "reviewer-context.md" "architect-context.md" "security-architect-context.md" "senior-engineer-context.md" "tech-lead-context.md")
-    for context_file in "${common_profiles[@]}"; do
-        if gh api "repos/$repo_path/contents/configs/.amazonq/profiles/$context_file?ref=$branch" | jq -r '.content' > "$temp_dir/$context_file.b64" 2>/dev/null; then  
-            if python3 -c "import base64; print(base64.b64decode(open('$temp_dir/$context_file.b64').read()).decode('utf-8'), end='')" > "$temp_dir/configs/.amazonq/profiles/$context_file" 2>/dev/null; then
-                rm "$temp_dir/$context_file.b64"
-                # Check if file is not empty
-                if [ -s "$temp_dir/configs/.amazonq/profiles/$context_file" ]; then
-                    ((files_downloaded++))
-                    info "Downloaded $context_file"
+    # Dynamically discover and download all non-example context files
+    info "Discovering available profiles in repository..."
+    
+    # Try to list directory contents to find all *-context.md files
+    local profile_files=()
+    
+    # Get directory listing from GitHub API
+    local dir_contents
+    dir_contents=$(gh api "repos/$repo_path/contents/configs/.amazonq/profiles?ref=$branch" 2>/dev/null | jq -r '.[] | select(.type=="file" and (.name | endswith("-context.md")) and (.name | startswith("example-") | not)) | .name' 2>/dev/null || echo "")
+    
+    if [ -n "$dir_contents" ]; then
+        while IFS= read -r filename; do
+            if [ -n "$filename" ]; then
+                profile_files+=("$filename")
+            fi
+        done <<< "$dir_contents"
+    fi
+    
+    # If we found files via directory listing, download them
+    if [ ${#profile_files[@]} -gt 0 ]; then
+        info "Found ${#profile_files[@]} profile(s): ${profile_files[*]}"
+        for context_file in "${profile_files[@]}"; do
+            if gh api "repos/$repo_path/contents/configs/.amazonq/profiles/$context_file?ref=$branch" | jq -r '.content' > "$temp_dir/$context_file.b64" 2>/dev/null; then  
+                if python3 -c "import base64; print(base64.b64decode(open('$temp_dir/$context_file.b64').read()).decode('utf-8'), end='')" > "$temp_dir/configs/.amazonq/profiles/$context_file" 2>/dev/null; then
+                    rm "$temp_dir/$context_file.b64"
+                    # Check if file is not empty
+                    if [ -s "$temp_dir/configs/.amazonq/profiles/$context_file" ]; then
+                        ((files_downloaded++))
+                        info "Downloaded $context_file"
+                    else
+                        rm -f "$temp_dir/configs/.amazonq/profiles/$context_file"
+                        warn "Downloaded empty $context_file"
+                    fi
                 else
-                    rm -f "$temp_dir/configs/.amazonq/profiles/$context_file"
-                    warn "Downloaded empty $context_file"
+                    warn "Failed to decode $context_file"
                 fi
             else
-                warn "Failed to decode $context_file"
+                warn "Failed to download $context_file"
             fi
-        else
-            # Don't warn for missing common profiles - they're optional
-            continue
-        fi
-    done
+        done
+    else
+        # Fallback to common profile names if directory listing failed
+        warn "Could not discover profiles, trying common names..."
+        local common_profiles=("engineer-context.md" "reviewer-context.md" "architect-context.md" "security-architect-context.md" "senior-engineer-context.md" "tech-lead-context.md")
+        for context_file in "${common_profiles[@]}"; do
+            if gh api "repos/$repo_path/contents/configs/.amazonq/profiles/$context_file?ref=$branch" | jq -r '.content' > "$temp_dir/$context_file.b64" 2>/dev/null; then  
+                if python3 -c "import base64; print(base64.b64decode(open('$temp_dir/$context_file.b64').read()).decode('utf-8'), end='')" > "$temp_dir/configs/.amazonq/profiles/$context_file" 2>/dev/null; then
+                    rm "$temp_dir/$context_file.b64"
+                    # Check if file is not empty
+                    if [ -s "$temp_dir/configs/.amazonq/profiles/$context_file" ]; then
+                        ((files_downloaded++))
+                        info "Downloaded $context_file"
+                    else
+                        rm -f "$temp_dir/configs/.amazonq/profiles/$context_file"
+                        warn "Downloaded empty $context_file"
+                    fi
+                else
+                    warn "Failed to decode $context_file"
+                fi
+            fi
+        done
+    fi
     
     # Return success if we downloaded at least one context file
     if [ "$files_downloaded" -gt 0 ]; then
