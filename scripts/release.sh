@@ -411,9 +411,9 @@ create_git_tag() {
     
     # Commit version changes
     git add "$INSTALL_SCRIPT"
-    git commit -m "chore: release version $version
+    git commit -m "Release version $version
 
-- Update version to $version in boomslang-install.sh"
+Update version to $version in boomslang-install.sh"
     
     # Create annotated tag
     git tag -a "v$version" -m "Release version $version"
