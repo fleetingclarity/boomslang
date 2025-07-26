@@ -31,6 +31,7 @@ UNINSTALL=false
 CLEAN_BACKUPS=false
 FORCE=false
 QUIET=false
+LOCAL_INSTALL=false
 
 usage() {
     cat << EOF
@@ -45,6 +46,7 @@ ${BOLD}ZERO-CONFIG INSTALLATION:${NC}
 ${BOLD}OPTIONS (for overrides):${NC}
     -r, --repo URL          Override repository URL
     -b, --branch BRANCH     Override git branch
+    -l, --local PATH        Install from local directory instead of remote repository
     -d, --dry-run          Show what would be done without making changes
     -u, --uninstall        Remove installed standards
     -c, --clean-backups    Remove all backup files
@@ -62,6 +64,9 @@ ${BOLD}EXAMPLES:${NC}
 
     # Override repository (for testing)
     $0 --repo gitlab.acme.com/devtools/amazonq-standards-dev
+
+    # Install from local directory
+    $0 --local /path/to/local/boomslang-repo
 
     # Uninstall
     $0 --uninstall
@@ -103,6 +108,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         -b|--branch)
             BRANCH="$2"
+            shift 2
+            ;;
+        -l|--local)
+            REPO_URL="$2"
+            LOCAL_INSTALL=true
             shift 2
             ;;
         -d|--dry-run)
@@ -360,6 +370,52 @@ download_with_gh() {
     return 1
 }
 
+install_from_local() {
+    local source_dir="$1"
+    local temp_dir="$2"
+    
+    info "Installing from local directory: $source_dir"
+    
+    # Validate local directory structure
+    if [ ! -d "$source_dir" ]; then
+        error "Local directory does not exist: $source_dir"
+        return 1
+    fi
+    
+    local profiles_source="$source_dir/configs/.amazonq/profiles"
+    if [ ! -d "$profiles_source" ]; then
+        error "Local directory missing required structure: configs/.amazonq/profiles/"
+        return 1
+    fi
+    
+    # Create temp directory structure and copy files
+    mkdir -p "$temp_dir/configs/.amazonq/profiles"
+    
+    # Copy context files
+    local files_copied=0
+    for context_file in "$profiles_source"/*-context.md; do
+        if [ -f "$context_file" ]; then
+            cp "$context_file" "$temp_dir/configs/.amazonq/profiles/"
+            local filename=$(basename "$context_file")
+            info "Copied $filename"
+            ((files_copied++))
+        fi
+    done
+    
+    # Copy install-config.json if it exists
+    if [ -f "$source_dir/install-config.json" ]; then
+        cp "$source_dir/install-config.json" "$temp_dir/"
+        info "Copied install-config.json"
+        ((files_copied++))
+    fi
+    
+    if [ "$files_copied" -eq 0 ]; then
+        error "No context files (*-context.md) found in $profiles_source"
+        return 1
+    fi
+    
+    return 0
+}
 
 download_repo() {
     local repo="$1"
@@ -396,19 +452,34 @@ install_rules() {
     local temp_dir=$(mktemp -d)
     trap "rm -rf $temp_dir" EXIT
     
-    info "Installing from repository: $REPO_URL (branch: $BRANCH)"
+    if [ "$LOCAL_INSTALL" = true ]; then
+        info "Installing from local directory: $REPO_URL"
+    else
+        info "Installing from repository: $REPO_URL (branch: $BRANCH)"
+    fi
     
     if [ "$DRY_RUN" = true ]; then
-        info "Would download repository to temporary directory"
+        if [ "$LOCAL_INSTALL" = true ]; then
+            info "Would copy files from local directory to temporary directory"
+        else
+            info "Would download repository to temporary directory"
+        fi
         info "Would install context files from configs/.amazonq/profiles/ to $CONTEXT_DIR"
         info "Would create profiles in $PROFILES_DIR"
         return 0
     fi
     
-    # Download repository
-    if ! download_repo "$REPO_URL" "$BRANCH" "$temp_dir"; then
-        error "Failed to download repository. Check your authentication and repository access."
-        exit 1
+    # Get files (either download or copy from local)
+    if [ "$LOCAL_INSTALL" = true ]; then
+        if ! install_from_local "$REPO_URL" "$temp_dir"; then
+            error "Failed to copy from local directory."
+            exit 1
+        fi
+    else
+        if ! download_repo "$REPO_URL" "$BRANCH" "$temp_dir"; then
+            error "Failed to download repository. Check your authentication and repository access."
+            exit 1
+        fi
     fi
     
     # Check if profiles directory exists in repo
@@ -697,8 +768,8 @@ main() {
         return 0
     fi
     
-    # Determine repository URL
-    if [ -z "$REPO_URL" ]; then
+    # Determine repository URL (skip for local install)
+    if [ "$LOCAL_INSTALL" = false ] && [ -z "$REPO_URL" ]; then
         if ! REPO_URL=$(detect_repository); then
             error "Could not determine repository URL"
             echo "Please ensure this script is run from a git repository, or"
@@ -714,9 +785,11 @@ main() {
         BRANCH="$ORG_BRANCH"
     fi
     
-    # Try to load configuration from repository (optional)
-    if ! load_config "$REPO_URL" "$BRANCH"; then
-        warn "Could not load remote configuration, using defaults"
+    # Try to load configuration from repository (optional, skip for local)
+    if [ "$LOCAL_INSTALL" = false ]; then
+        if ! load_config "$REPO_URL" "$BRANCH"; then
+            warn "Could not load remote configuration, using defaults"
+        fi
     fi
     
     if [ "$DRY_RUN" = true ]; then
