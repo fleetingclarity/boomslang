@@ -1,6 +1,6 @@
 # Boomslang: Amazon Q CLI Standards Manager
 
-Boomslang is a template repository that organizations can fork and customize to distribute their Amazon Q Developer CLI standards. It provides a simple way to define custom context rules and distribute them via a lightweight install script.
+Boomslang is a template repository that organizations can fork and customize to distribute their Amazon Q Developer CLI standards. It provides a simple way to define custom context profiles and distribute them via a lightweight install script.
 
 ## Quick Start
 
@@ -20,7 +20,7 @@ curl -sSL https://gitlab.yourorg.com/devtools/amazonq-standards/-/raw/main/booms
 2. **Configure the install script** by setting `ORG_REPO_URL` in `boomslang-install.sh`
 3. **Customize the context files** in `configs/.amazonq/profiles/`
 4. **Update configuration** in `install-config.json`
-5. **Validate rules** with `./scripts/validate-rules.sh`
+5. **Validate profiles** with `./scripts/validate-rules.sh`
 6. **Distribute** the pre-configured install script to your team
 
 ## What's Included
@@ -36,7 +36,7 @@ curl -sSL https://gitlab.yourorg.com/devtools/amazonq-standards/-/raw/main/booms
 - ✅ **Zero-Config Installation**: Pre-configured by maintainers, users just run the script
 - ✅ **GitLab Integration**: Uses `glab` CLI with SSH fallback for private repositories
 - ✅ **Dry Run Mode**: See what would be installed without making changes  
-- ✅ **Clean Install**: Replaces existing rules with latest versions
+- ✅ **Clean Install**: Replaces existing profiles with latest versions
 - ✅ **Clean Uninstall**: Complete removal with confirmation prompts
 - ✅ **Cross-Platform**: Works on macOS and Linux
 
@@ -48,7 +48,7 @@ curl -sSL https://gitlab.yourorg.com/devtools/amazonq-standards/-/raw/main/booms
 │   ├── reviewer-context.md     # Code review and analysis context  
 │   └── architect-context.md    # System architecture context
 ├── scripts/                    # Utility scripts
-│   └── validate-rules.sh       # Rule validation
+│   └── validate-rules.sh       # Profile validation
 ├── docs/                       # Documentation
 │   └── installation-guide.md   # Detailed installation guide
 ├── boomslang-install.sh        # Main installation script

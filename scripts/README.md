@@ -4,23 +4,23 @@ This directory contains utility scripts for managing Amazon Q Developer CLI stan
 
 ## Files
 
-- `validate-rules.sh` - Validates context rules before distribution
+- `validate-rules.sh` - Validates context profiles before distribution
 - `test-local-install.sh` - Tests local installation workflow
 - `../boomslang-install.sh` - Main installation script for end users
 - `../install-config.json` - Installation configuration
 
 ## Quick Start for Maintainers
 
-### 1. Validate Rules
+### 1. Validate Profiles
 
-Before distributing your customized rules, validate them:
+Before distributing your customized profiles, validate them:
 
 ```bash
 ./scripts/validate-rules.sh
 ```
 
 This checks:
-- Rule files exist and are readable
+- Profile files exist and are readable
 - Files contain activation protocols
 - Organization customization sections are present
 - File sizes are reasonable
@@ -59,8 +59,8 @@ cd amazonq-standards
 The `validate-rules.sh` script provides comprehensive checking:
 
 ### File Structure Validation
-- Ensures `configs/.amazonq/rules/` directory exists
-- Verifies rule files have `.md` extension
+- Ensures `configs/.amazonq/profiles/` directory exists
+- Verifies profile files have `.md` extension
 - Checks files are readable and non-empty
 
 ### Content Validation
@@ -71,8 +71,8 @@ The `validate-rules.sh` script provides comprehensive checking:
 ### Example Output
 
 ```bash
-🔍 Validating Amazon Q context rules...
-📁 Found 3 rule file(s)
+🔍 Validating Amazon Q context profiles...
+📁 Found 3 profile file(s)
   📄 Validating code-reviewer.md...
     ✅ Contains activation protocol
     ✅ Contains customization section
@@ -81,7 +81,7 @@ The `validate-rules.sh` script provides comprehensive checking:
     ✅ Contains activation protocol
     ✅ Contains customization section
     ✅ security-analyst.md validation complete
-✅ All rule files passed validation!
+✅ All profile files passed validation!
 📦 Ready for distribution
 ```
 
@@ -89,9 +89,9 @@ The `validate-rules.sh` script provides comprehensive checking:
 
 ### Repository Setup
 1. Fork the boomslang repository
-2. Customize rules in `configs/.amazonq/rules/`
+2. Customize profiles in `configs/.amazonq/profiles/`
 3. Update `install-config.json` with organization details
-4. Validate rules with `./scripts/validate-rules.sh`
+4. Validate profiles with `./scripts/validate-rules.sh`
 
 ### Distribution Options
 
@@ -121,13 +121,13 @@ cd amazonq-standards
 ## Testing and Validation
 
 ### Before Distribution
-1. Run `./scripts/validate-rules.sh` to check rule quality
+1. Run `./scripts/validate-rules.sh` to check profile quality
 2. Test installation with `./boomslang-install.sh --dry-run`
 3. Test uninstallation with `./boomslang-install.sh --uninstall --dry-run`
-4. Verify rules work with Amazon Q Developer CLI
+4. Verify profiles work with Amazon Q Developer CLI
 
 ### After Updates
-1. Validate rules after any changes
+1. Validate profiles after any changes
 2. Test installation from different branches
 3. Ensure backward compatibility with existing installations
 
@@ -135,7 +135,7 @@ cd amazonq-standards
 
 - Keep repository access restricted to authorized maintainers
 - Use branch protection rules for main branch
-- Review all rule changes before merging
+- Review all profile changes before merging
 - Regularly audit who has access to the repository
 - Consider using signed commits for rule changes
 
@@ -143,9 +143,9 @@ cd amazonq-standards
 
 ### Common Issues
 
-1. **Rule validation fails**: Check file permissions and content format
+1. **Profile validation fails**: Check file permissions and content format
 2. **Installation fails**: Verify repository access and authentication
-3. **Rules don't activate**: Check activation keywords and syntax
+3. **Profiles don't activate**: Check activation keywords and syntax
 
 ### Getting Help
 

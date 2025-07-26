@@ -1,18 +1,18 @@
 # Boomslang: Amazon Q CLI Standards Manager
 
 ## Project Overview
-Boomslang is a template repository that organizations can fork and customize to distribute their Amazon Q Developer CLI standards. It provides a simple way for organizations to define custom context rules and distribute them via a lightweight install script for easy team adoption. Amazon Q Developer CLI is AWS's AI-powered agentic coding assistant that provides natural language chat, command auto-completion for hundreds of CLIs, code generation, and AWS resource management capabilities.
+Boomslang is a template repository that organizations can fork and customize to distribute their Amazon Q Developer CLI standards. It provides a simple way for organizations to define custom context profiles and distribute them via a lightweight install script for easy team adoption. Amazon Q Developer CLI is AWS's AI-powered agentic coding assistant that provides natural language chat, command auto-completion for hundreds of CLIs, code generation, and AWS resource management capabilities.
 
 ## Goals
 
 ### Primary Goals
 - **Template Repository**: Provide a forkable template for organizations to customize Amazon Q Developer CLI standards
-- **Easy Customization**: Enable organization maintainers to modify context rules for their specific needs
+- **Easy Customization**: Enable organization maintainers to modify context profiles for their specific needs
 - **Simple Distribution**: Provide scripts to validate and distribute organization standards
 - **Frictionless Installation**: Allow team members to install organization standards via simple install script
 
 ### Secondary Goals
-- **Multi-rule Support**: Handle different context rules for various development tasks and workflows
+- **Multi-profile Support**: Handle different context profiles for various development tasks and workflows
 - **Version Management**: Enable versioned releases of organization standards
 - **Documentation**: Provide clear guidance for customization and deployment
 
@@ -22,9 +22,9 @@ Boomslang is a template repository that organizations can fork and customize to 
 
 #### Core Features
 1. **Template Repository**
-   - Provide base context rules for common development workflows
+   - Provide base context profiles for common development workflows
    - Include customizable organization standards sections
-   - Support multiple context rules (code-reviewer, security-analyst, performance-optimizer, etc.)
+   - Support multiple context profiles (code-reviewer, security-analyst, performance-optimizer, etc.)
    - Version control all configuration changes
    - Maintain clear documentation for customization
 
@@ -36,13 +36,13 @@ Boomslang is a template repository that organizations can fork and customize to 
 
 3. **Installation Process**
    - Zero-config `./boomslang-install.sh` command for end users
-   - Automatic placement of rules in `$HOME/.amazonq/rules/`
+   - Automatic placement of profiles in `$HOME/.aws/amazonq/profiles/`
    - Installation tracking with recovery options
 
 4. **Customization Workflow**
    - Fork boomslang repository
-   - Modify context rules in `configs/.amazonq/rules/`
-   - Validate rules with validation script
+   - Modify context profiles in `configs/.amazonq/profiles/`
+   - Validate profiles with validation script
    - Distribute install script to team
 
 #### Amazon Q Developer CLI Configuration Management
@@ -51,7 +51,7 @@ Boomslang is a template repository that organizations can fork and customize to 
 - **Command Completion Settings**: Standardize auto-completion behavior for supported CLIs (git, npm, docker, aws, etc.)
 - **Agentic Behavior Configuration**: Control AI assistant capabilities and permissions
 - **AWS Integration Settings**: Manage CloudShell integration and AWS resource access configurations
-- **Keyword-activated Context Rules**: Context rules that activate based on specific keywords or phrases, allowing for specialized AI behavior (code review, security analysis, performance optimization, etc.)
+- **Keyword-activated Context Profiles**: Context profiles that activate based on specific keywords or phrases, allowing for specialized AI behavior (code review, security analysis, performance optimization, etc.)
 - **Template-based Configuration Generation**: Dynamic configuration creation based on organization needs
 - **Configuration Validation**: Ensure settings compatibility and prevent broken states
 
@@ -83,10 +83,10 @@ Boomslang is a template repository that organizations can fork and customize to 
 ## Technical Architecture
 
 ### Components
-1. **Template Repository**: Base boomslang repository with sample context rules
+1. **Template Repository**: Base boomslang repository with sample context profiles
 2. **Install Script**: Lightweight installation script with authentication handling
 3. **Validation Script**: Rule validation and quality checking
-4. **Context Rules**: Markdown files defining keyword-activated AI behavior
+4. **Context Profiles**: Markdown files defining keyword-activated AI behavior
 
 ### Distribution Strategy
 - **Template Distribution**: Public repository for organizations to fork (GitHub/GitLab)
@@ -97,7 +97,7 @@ Boomslang is a template repository that organizations can fork and customize to 
 ```
 configs/
 └── .amazonq/
-    └── rules/
+    └── profiles/
         └── reviewer-context.md
 scripts/
 └── validate-rules.sh
@@ -121,13 +121,13 @@ install-config.json
 - **Platform compatibility**: Shell script compatibility across Unix-like systems
 
 ## Timeline and Milestones
-1. **Phase 1** (Weeks 1-2): Template repository with sample context rules
+1. **Phase 1** (Weeks 1-2): Template repository with sample context profiles
 2. **Phase 2** (Weeks 3-4): Install script with authentication and validation
 3. **Phase 3** (Weeks 5-6): Documentation and testing
 4. **Phase 4** (Weeks 7-8): Final testing, error handling, and release preparation
 
 ## Future Enhancements
-- Community marketplace for sharing context rules
+- Community marketplace for sharing context profiles
 - Integration with CI/CD pipelines for automated updates
 - Web dashboard for rule management and analytics
 - Support for additional Git hosting platforms
