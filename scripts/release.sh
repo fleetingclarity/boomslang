@@ -424,6 +424,7 @@ create_git_tag() {
 
 create_github_release() {
     local version="$1"
+    local previous_tag="$2"
     
     if [ "$NO_GITHUB" = true ]; then
         warn "Skipping GitHub release as requested"
@@ -435,15 +436,13 @@ create_github_release() {
     if [ "$DRY_RUN" = true ]; then
         log "Would create GitHub release for v$version with generated changelog"
         log "Release notes would be:"
-        generate_changelog_content "$version" "$(get_last_release_tag)" | sed 's/^/  /'
+        generate_changelog_content "$version" "$previous_tag" | sed 's/^/  /'
         return 0
     fi
     
-    # Generate release notes from conventional commits
-    local last_tag
-    last_tag=$(get_last_release_tag)
+    # Generate release notes from conventional commits using the previous tag
     local release_notes
-    release_notes=$(generate_changelog_content "$version" "$last_tag")
+    release_notes=$(generate_changelog_content "$version" "$previous_tag")
     
     if [ -z "$release_notes" ]; then
         release_notes="Release version $version
@@ -563,7 +562,7 @@ main() {
     run_tests
     update_version "$version"
     create_git_tag "$version"
-    create_github_release "$version"
+    create_github_release "$version" "$last_tag"
     
     echo ""
     success "Release $version completed successfully!"
