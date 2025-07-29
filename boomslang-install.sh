@@ -152,23 +152,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 detect_repository() {
-    local detected_repo=""
-    
-    # Try to detect from git remote if we're in a git repository
-    if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; then
-        detected_repo=$(git remote get-url origin 2>/dev/null || echo "")
-        if [ -n "$detected_repo" ]; then
-            echo "$detected_repo"
-            return 0
-        fi
-    fi
-    
-    # If ORG_REPO_URL is set by maintainer, use that
+    # ORG_REPO_URL should be set by maintainer for remote installation
     if [ -n "$ORG_REPO_URL" ]; then
         echo "$ORG_REPO_URL"
         return 0
     fi
     
+    # If ORG_REPO_URL is not set, fail with helpful message
     return 1
 }
 
@@ -855,9 +845,9 @@ main() {
     if [ "$LOCAL_INSTALL" = false ] && [ -z "$REPO_URL" ]; then
         if ! REPO_URL=$(detect_repository); then
             error "Could not determine repository URL"
-            echo "Please ensure this script is run from a git repository, or"
-            echo "have your maintainer configure ORG_REPO_URL in the script, or"
-            echo "use --repo to specify the repository manually."
+            echo "The maintainer must configure ORG_REPO_URL in the script, or"
+            echo "use --repo to specify the repository manually, or"
+            echo "use --local to install from the current directory."
             exit 1
         fi
         info "Auto-detected repository: $REPO_URL"
